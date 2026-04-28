@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Football Injury Prediction System</title>
+<meta name="description" content="ML-driven football injury risk assessment with 10 biometric inputs and instant binary classification.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--card:rgba(255,255,255,.04);
+  --fg:#e8e8f0;--muted:#8888a0;
+  --accent:#6c5ce7;--accent2:#a29bfe;--blue:#74b9ff;
+  --danger:#ff6b6b;--success:#51cf66;
+  --grad1:linear-gradient(135deg,#6c5ce7,#a29bfe 50%,#74b9ff);
+  --grad-danger:linear-gradient(135deg,#ff6b6b,#ee5a24);
+  --grad-safe:linear-gradient(135deg,#51cf66,#74b9ff);
+  --glass:rgba(255,255,255,.05);--glass-b:rgba(255,255,255,.08);
+  --unit:8px;--r:16px;--rs:8px;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:-50%;width:200%;height:200%;
+  background:radial-gradient(circle at 20% 20%,rgba(108,92,231,.08),transparent 50%),
+  radial-gradient(circle at 80% 80%,rgba(116,185,255,.06),transparent 50%);
+  z-index:0;pointer-events:none;animation:bgShift 20s ease-in-out infinite alternate}
+@keyframes bgShift{to{transform:translate(3%,3%)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(108,92,231,.2)}50%{box-shadow:0 0 40px rgba(108,92,231,.4)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+main{max-width:1120px;margin:0 auto;padding:calc(var(--unit)*5) calc(var(--unit)*3);position:relative;z-index:1}
+
+/* --- Typography --- */
+.section-label{font-size:11px;text-transform:uppercase;letter-spacing:.25em;font-weight:600;
+  background:var(--grad1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0 0 12px}
+h1{font-size:clamp(2.2rem,5vw,4.2rem);font-weight:900;text-transform:uppercase;letter-spacing:-.03em;line-height:1;
+  background:linear-gradient(135deg,#e8e8f0,#a29bfe 60%,#74b9ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{font-size:13px;letter-spacing:.05em;color:var(--muted);line-height:1.7;margin-top:20px;max-width:480px}
+
+/* --- Cards & Glass --- */
+.glass-card{background:var(--glass);border:1px solid var(--glass-b);border-radius:var(--r);
+  padding:calc(var(--unit)*4);backdrop-filter:blur(12px);transition:transform .2s,box-shadow .2s}
+.glass-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+
+/* --- Header --- */
+header{border-bottom:1px solid var(--glass-b);padding-bottom:32px;margin-bottom:40px;animation:fadeUp .6s ease-out both}
+
+/* --- Divider --- */
+.divider{border:none;border-top:1px solid var(--glass-b);margin:calc(var(--unit)*4) 0}
+
+/* --- Grid --- */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--unit)*3)}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--unit)*3)}
+@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+/* --- Form Controls --- */
+label.field-label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:600;color:var(--muted);margin-bottom:6px}
+input[type=text],select{width:100%;background:var(--glass);border:1px solid var(--glass-b);border-radius:var(--rs);
+  color:var(--fg);font-family:var(--font);font-weight:500;font-size:15px;padding:12px 16px;
+  backdrop-filter:blur(12px);transition:border-color .3s,box-shadow .3s;outline:none}
+input[type=text]:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,231,.2)}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+select option{background:var(--bg2);color:var(--fg)}
+
+/* --- Slider --- */
+.slider-group{margin-bottom:calc(var(--unit)*3);animation:fadeUp .5s ease-out both}
+.slider-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.slider-val{font-size:14px;font-weight:700;color:var(--accent2);font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:6px;border-radius:3px;
+  background:rgba(255,255,255,.08);outline:none;transition:background .2s}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--accent);cursor:pointer;box-shadow:0 0 12px rgba(108,92,231,.5);transition:transform .15s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);
+  cursor:pointer;border:none;box-shadow:0 0 12px rgba(108,92,231,.5)}
+
+/* --- Button --- */
+.btn-predict{display:block;width:100%;max-width:360px;padding:16px 32px;border:none;border-radius:var(--rs);
+  background:var(--grad1);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.12em;cursor:pointer;
+  box-shadow:0 4px 20px rgba(108,92,231,.3);transition:transform .2s,box-shadow .2s}
+.btn-predict:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(108,92,231,.5)}
+.btn-predict:active{transform:translateY(0)}
+.btn-predict:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* --- Result Banner --- */
+.result-banner{border-radius:var(--r);padding:48px;position:relative;backdrop-filter:blur(16px);
+  overflow:hidden;animation:fadeUp .4s ease-out both;margin:24px 0}
+.result-banner.high{background:linear-gradient(135deg,rgba(255,107,107,.15),rgba(238,90,36,.1));border:1px solid rgba(255,107,107,.3)}
+.result-banner.low{background:linear-gradient(135deg,rgba(81,207,102,.12),rgba(108,92,231,.08));border:1px solid rgba(81,207,102,.3)}
+.result-icon{position:absolute;top:16px;right:24px;font-size:64px;opacity:.15;line-height:1}
+.result-small{font-size:11px;text-transform:uppercase;letter-spacing:.3em;font-weight:600;color:var(--muted);margin-bottom:4px}
+.result-name{font-size:clamp(1.2rem,3vw,2rem);font-weight:800;letter-spacing:.02em;text-transform:uppercase;margin-bottom:20px}
+.result-label{font-size:clamp(2.5rem,7vw,5rem);font-weight:900;line-height:.95;letter-spacing:-.03em;text-transform:uppercase;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.result-label.high{background:var(--grad-danger);-webkit-background-clip:text}
+.result-label.low{background:var(--grad-safe);-webkit-background-clip:text}
+.result-prob{font-size:18px;font-weight:700;letter-spacing:.05em;margin-top:20px}
+
+/* --- Metric Card --- */
+.metric-card{text-align:center}
+.metric-card .metric-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:600;color:var(--muted);margin-bottom:8px}
+.metric-card .metric-value{font-size:26px;font-weight:800}
+
+/* --- Tabs --- */
+.tab-bar{display:flex;gap:8px;border-bottom:1px solid var(--glass-b);margin-bottom:24px}
+.tab-btn{padding:12px 24px;border:1px solid transparent;border-bottom:none;border-radius:var(--rs) var(--rs) 0 0;
+  background:transparent;color:var(--muted);font-family:var(--font);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;cursor:pointer;transition:all .2s}
+.tab-btn:hover{color:var(--fg);background:var(--glass)}
+.tab-btn.active{background:var(--glass);color:var(--accent2);border-color:var(--glass-b)}
+.tab-panel{display:none}.tab-panel.active{display:block;animation:fadeUp .3s ease-out}
+
+/* --- Table --- */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+  font-weight:600;padding:12px 16px;border-bottom:1px solid var(--glass-b)}
+.data-table td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04)}
+.data-table tr:hover td{background:rgba(255,255,255,.02)}
+.risk-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.05em}
+.risk-badge.high{background:rgba(255,107,107,.15);color:#ff6b6b}
+.risk-badge.low{background:rgba(81,207,102,.15);color:#51cf66}
+
+/* --- Footer --- */
+footer{border-top:1px solid var(--glass-b);margin-top:48px;padding-top:24px;display:flex;
+  justify-content:space-between;flex-wrap:wrap;gap:16px}
+footer p{font-size:10px;text-transform:uppercase;letter-spacing:.2em;font-weight:600;color:var(--muted)}
+footer .muted{opacity:.5;font-weight:400}
+
+/* --- Hidden --- */
+.hidden{display:none!important}
+
+/* --- Loading Spinner --- */
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<main>
+  <!-- ======= HEADER ======= -->
+  <header>
+    <p class="section-label">01. System</p>
+    <h1>Football<br>Injury<br>Prediction</h1>
+    <p class="subtitle">Machine-learning driven risk assessment.<br>10 biometric inputs · Binary classification · Instant result.</p>
+  </header>
+
+  <!-- ======= PLAYER IDENTITY ======= -->
+  <section>
+    <p class="section-label">02. Player Identity</p>
+    <div class="grid-2">
+      <div>
+        <label class="field-label" for="playerName">Player Name</label>
+        <input type="text" id="playerName" placeholder="Enter player name...">
+      </div>
+      <div>
+        <label class="field-label" for="profileSelect">Autofill Profile</label>
+        <select id="profileSelect">
+          <option value="">-- Select --</option>
+          <option value="young">Young Midfielder (Low Risk)</option>
+          <option value="veteran">Veteran Striker (High Risk)</option>
+          <option value="average">Average Player</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ======= INPUT PARAMETERS ======= -->
+  <section>
+    <p class="section-label">03. Input Parameters</p>
+    <div class="grid-2" id="slidersContainer"></div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- ======= ANALYSIS ======= -->
+  <section>
+    <p class="section-label">04. Analysis</p>
+    <button class="btn-predict" id="predictBtn" type="button">Run Prediction</button>
+  </section>
+
+  <!-- ======= RESULTS (hidden initially) ======= -->
+  <section id="resultsSection" class="hidden">
+    <div id="resultBanner" class="result-banner"></div>
+    <div class="grid-3" id="metricsRow"></div>
+    <hr class="divider">
+
+    <p class="section-label">05. Player Analysis</p>
+    <div class="tab-bar" id="analysisTabs">
+      <button class="tab-btn active" data-tab="radar">Player Radar</button>
+      <button class="tab-btn" data-tab="importance">Feature Importance</button>
+      <button class="tab-btn" data-tab="summary">Input Summary</button>
+    </div>
+    <div id="tab-radar" class="tab-panel active"><div id="radarChart"></div></div>
+    <div id="tab-importance" class="tab-panel"><div id="importanceChart"></div></div>
+    <div id="tab-summary" class="tab-panel"><table class="data-table" id="summaryTable"></table></div>
+  </section>
+
+  <!-- ======= HISTORY ======= -->
+  <section id="historySection" class="hidden">
+    <hr class="divider">
+    <p class="section-label">06. Prediction History</p>
+    <div class="tab-bar" id="historyTabs">
+      <button class="tab-btn active" data-tab="htable">History Table</button>
+      <button class="tab-btn" data-tab="htrend">Probability Trend</button>
+    </div>
+    <div id="tab-htable" class="tab-panel active"><table class="data-table" id="historyTable"></table></div>
+    <div id="tab-htrend" class="tab-panel"><div id="trendChart"></div></div>
+    <button class="btn-predict" id="clearHistoryBtn" style="max-width:200px;margin-top:24px;font-size:12px;padding:12px 24px" type="button">Clear History</button>
+  </section>
+
+  <footer>
+    <p>Football Injury Prediction System</p>
+    <p class="muted">Machine Learning · Gradient Boosting · 10 Features</p>
+  </footer>
+</main>
+
+<script>
+/* ── Feature Config ── */
+const FEATURES=[
+  {id:"age",label:"AGE",min:18,max:40,step:1,def:25,help:"Player age in years"},
+  {id:"bmi",label:"BMI",min:18,max:32,step:0.1,def:23.5,help:"Body Mass Index (kg/m²)"},
+  {id:"distance",label:"TOTAL DISTANCE",min:4,max:15,step:0.1,def:9.5,help:"Distance per match (km)"},
+  {id:"sprints",label:"SPRINT COUNT",min:5,max:70,step:1,def:30,help:"Sprints per match"},
+  {id:"accload",label:"ACCELERATION LOAD",min:40,max:350,step:5,def:160,help:"Cumulative acceleration (AU)"},
+  {id:"acwr",label:"ACWR",min:0.4,max:2.2,step:0.05,def:1.05,help:"Acute:Chronic Workload Ratio"},
+  {id:"yoyo",label:"YO-YO SCORE",min:13,max:24,step:0.5,def:18.5,help:"Yo-Yo Intermittent Recovery"},
+  {id:"jump",label:"JUMP HEIGHT",min:20,max:60,step:0.5,def:40,help:"Counter-movement jump (cm)"},
+  {id:"injuries",label:"PREVIOUS INJURIES",min:0,max:8,step:1,def:1,help:"Total prior injuries"},
+  {id:"minutes",label:"MINUTES PLAYED",min:0,max:90,step:1,def:65,help:"Avg minutes per match"},
+];
+const PROFILES={young:[22,22.5,10.2,28,120,0.85,20.5,42,0,75],veteran:[34,26.8,12.5,52,260,1.75,15,30,5,88],average:[27,24,9,35,180,1.1,18,38,2,60]};
+const NAMES=["Age","BMI","Total Distance","Sprint Count","Acceleration Load","ACWR","Yo-Yo Score","Jump Height","Previous Injuries","Minutes Played"];
+let history=JSON.parse(localStorage.getItem('injuryHistory')||'[]');
+
+/* ── Build Sliders ── */
+const container=document.getElementById('slidersContainer');
+FEATURES.forEach((f,i)=>{
+  const div=document.createElement('div');
+  div.className='slider-group';
+  div.style.animationDelay=`${i*50}ms`;
+  div.innerHTML=`<div class="slider-header"><label class="field-label" for="sl_${f.id}">${f.label}</label><span class="slider-val" id="v_${f.id}">${f.def}</span></div>
+    <input type="range" id="sl_${f.id}" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.def}" title="${f.help}">`;
+  container.appendChild(div);
+  div.querySelector('input').addEventListener('input',e=>{document.getElementById('v_'+f.id).textContent=parseFloat(e.target.value).toFixed(f.step<1?1:0)});
+});
+
+/* ── Profile Selector ── */
+document.getElementById('profileSelect').addEventListener('change',e=>{
+  const vals=PROFILES[e.target.value];
+  if(!vals)return;
+  FEATURES.forEach((f,i)=>{const sl=document.getElementById('sl_'+f.id);sl.value=vals[i];document.getElementById('v_'+f.id).textContent=parseFloat(vals[i]).toFixed(f.step<1?1:0)});
+});
+
+/* ── Tabs ── */
+document.querySelectorAll('.tab-bar').forEach(bar=>{
+  bar.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const parent=bar.parentElement;
+      parent.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+      parent.querySelector('#tab-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+});
+
+/* ── Prediction ── */
+const predictBtn=document.getElementById('predictBtn');
+predictBtn.addEventListener('click',async()=>{
+  const inputs=FEATURES.map(f=>parseFloat(document.getElementById('sl_'+f.id).value));
+  const name=document.getElementById('playerName').value.trim()||'UNKNOWN PLAYER';
+  predictBtn.disabled=true;
+  predictBtn.innerHTML='<span class="spinner"></span>Analyzing...';
+
+  try{
+    const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inputs})});
+    const data=await res.json();
+    if(data.error){alert(data.error);return}
+    renderResult(name,inputs,data);
+    history.push({time:new Date().toLocaleTimeString(),player:name,risk:data.label,probability:data.risk_probability,inputs});
+    localStorage.setItem('injuryHistory',JSON.stringify(history));
+    renderHistory();
+  }catch(e){alert('Prediction failed: '+e.message)}
+  finally{predictBtn.disabled=false;predictBtn.textContent='Run Prediction'}
+});
+
+/* ── Render Result ── */
+function renderResult(name,inputs,data){
+  const s=document.getElementById('resultsSection');s.classList.remove('hidden');
+  const hi=data.prediction===1;
+  const banner=document.getElementById('resultBanner');
+  banner.className='result-banner '+(hi?'high':'low');
+  banner.innerHTML=`<div class="result-icon">${hi?'⚠':'✓'}</div>
+    <p class="result-small">Player</p><p class="result-name">${name}</p>
+    <p class="result-small">Injury Risk Assessment</p>
+    <p class="result-label ${hi?'high':'low'}">${data.label}</p>
+    <p class="result-prob">Probability: ${data.risk_probability}%</p>`;
+
+  document.getElementById('metricsRow').innerHTML=
+    `<div class="glass-card metric-card"><p class="metric-label">Injury Probability</p><p class="metric-value" style="color:${hi?'var(--danger)':'var(--fg)'}">${data.risk_probability}%</p></div>
+     <div class="glass-card metric-card"><p class="metric-label">Safe Probability</p><p class="metric-value" style="color:var(--success)">${data.safe_probability}%</p></div>
+     <div class="glass-card metric-card"><p class="metric-label">Classification</p><p class="metric-value">${data.label}</p></div>`;
+
+  /* Radar */
+  const norm=FEATURES.map((f,i)=>((inputs[i]-f.min)/(f.max-f.min))*100);
+  const labels=FEATURES.map(f=>f.label);
+  Plotly.newPlot('radarChart',[{type:'scatterpolar',r:[...norm,norm[0]],theta:[...labels,labels[0]],
+    fill:'toself',fillcolor:'rgba(108,92,231,.15)',line:{color:'#a29bfe',width:2},marker:{size:6,color:'#6c5ce7'}}],
+    {polar:{radialaxis:{visible:true,range:[0,100],showticklabels:false,gridcolor:'rgba(255,255,255,.06)'},
+      angularaxis:{tickfont:{family:'Inter',size:10,color:'#8888a0'},gridcolor:'rgba(255,255,255,.06)'},bgcolor:'rgba(255,255,255,.02)'},
+      paper_bgcolor:'rgba(0,0,0,0)',margin:{l:60,r:60,t:40,b:40},height:420,font:{family:'Inter',color:'#e8e8f0'},showlegend:false},
+    {responsive:true});
+
+  /* Feature Importance */
+  const imp=data.feature_importances;const entries=Object.entries(imp).sort((a,b)=>b[1]-a[1]);
+  Plotly.newPlot('importanceChart',[{type:'bar',x:entries.map(e=>e[1]),y:entries.map(e=>e[0]),orientation:'h',
+    marker:{color:entries.map((_,i)=>i===0?'#6c5ce7':'#a29bfe')},
+    text:entries.map(e=>e[1].toFixed(3)),textposition:'outside',textfont:{family:'Inter',size:12,color:'#e8e8f0'}}],
+    {font:{family:'Inter',size:12,color:'#e8e8f0'},plot_bgcolor:'rgba(0,0,0,0)',paper_bgcolor:'rgba(0,0,0,0)',
+      margin:{l:0,r:40,t:24,b:0},height:400,bargap:.3,
+      xaxis:{showgrid:true,gridcolor:'rgba(255,255,255,.06)',zeroline:true,zerolinecolor:'rgba(255,255,255,.15)',
+        title:{text:'IMPORTANCE SCORE',font:{size:10,color:'#8888a0'}}},
+      yaxis:{autorange:'reversed',tickfont:{size:11,color:'#8888a0'}}},{responsive:true});
+
+  /* Summary Table */
+  document.getElementById('summaryTable').innerHTML=`<thead><tr><th>Feature</th><th>Value</th></tr></thead><tbody>`+
+    NAMES.map((n,i)=>`<tr><td>${n}</td><td>${inputs[i].toFixed(2)}</td></tr>`).join('')+'</tbody>';
+
+  s.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ── History ── */
+function renderHistory(){
+  if(!history.length){document.getElementById('historySection').classList.add('hidden');return}
+  document.getElementById('historySection').classList.remove('hidden');
+  document.getElementById('historyTable').innerHTML=`<thead><tr><th>Time</th><th>Player</th><th>Risk</th><th>Probability</th></tr></thead><tbody>`+
+    history.map(h=>`<tr><td>${h.time}</td><td>${h.player}</td><td><span class="risk-badge ${h.risk==='HIGH RISK'?'high':'low'}">${h.risk}</span></td><td>${h.probability}%</td></tr>`).join('')+'</tbody>';
+
+  const colors=history.map(h=>h.risk==='HIGH RISK'?'#ff6b6b':'#51cf66');
+  Plotly.newPlot('trendChart',[{x:history.map((_,i)=>i+1),y:history.map(h=>h.probability),mode:'lines+markers+text',
+    text:history.map(h=>h.probability+'%'),textposition:'top center',textfont:{family:'Inter',size:11,color:'#e8e8f0'},
+    line:{color:'#a29bfe',width:2},marker:{size:10,color:colors,line:{width:2,color:'rgba(255,255,255,.2)'}}}],
+    {font:{family:'Inter',size:12,color:'#e8e8f0'},plot_bgcolor:'rgba(0,0,0,0)',paper_bgcolor:'rgba(0,0,0,0)',
+      margin:{l:0,r:20,t:30,b:40},height:350,showlegend:false,
+      shapes:[{type:'line',x0:0,x1:history.length+1,y0:50,y1:50,line:{dash:'dash',color:'#ff6b6b',width:1}}],
+      annotations:[{x:history.length,y:50,text:'50% THRESHOLD',showarrow:false,font:{size:10,color:'#ff6b6b',family:'Inter'},yshift:12}],
+      xaxis:{title:'PREDICTION #',tickvals:history.map((_,i)=>i+1),ticktext:history.map(h=>h.player.substring(0,12)),
+        tickfont:{size:10,color:'#8888a0'},gridcolor:'rgba(255,255,255,.06)'},
+      yaxis:{title:'RISK PROBABILITY (%)',range:[0,105],gridcolor:'rgba(255,255,255,.06)',tickfont:{size:10,color:'#8888a0'}}},{responsive:true});
+}
+
+document.getElementById('clearHistoryBtn').addEventListener('click',()=>{history=[];localStorage.removeItem('injuryHistory');renderHistory()});
+renderHistory();
+</script>
+</body>
+</html>
